@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "generate": "node ./src/captcha.js"
+    "generate-captcha": "node ./src/captcha.js",
+    "generate-letters": "node generate_letters.js"
   },
   "devDependencies": {
     "jimp": "^0.22.8"
