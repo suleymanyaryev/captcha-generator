@@ -1,5 +1,11 @@
 {
-  "dependencies": {
+  "name": "captcha-generate",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "generate": "node ./src/captcha.js"
+  },
+  "devDependencies": {
     "jimp": "^0.22.8"
   }
 }
