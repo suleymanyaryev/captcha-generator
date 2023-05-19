@@ -1,5 +1,5 @@
 const fs = require('fs/promises')
-const { getRandomColorTable, convertToLittleEndian, urandom } = require('./utils')
+const { getRandomColorTable, getRandomBytes, convertToLittleEndian, convertToByteArray } = require('./utils')
 const font = require('./font')
 const colors = require('./colors')
 const SW = require('./sw')
@@ -103,8 +103,13 @@ function addDots(im, dr, {
     width, height
 }) {
     for (let n = 0; n < NDOTS; n++) {
-        let v = dr.readUInt32BE(n)
-        let i = v % (width * 67)
+        const v = (
+            (dr[n] << 24) |
+            (dr[n + 1] << 16) |
+            (dr[n + 2] << 8) |
+            dr[n + 3]
+        );
+        let i = v % (width * (height - 3))
 
         im[i + 0] = 0xff
         im[i + 1] = 0xff
@@ -129,49 +134,17 @@ function applyBlur(im, {
     }
 }
 
-function applyFilter(im, {
-    width, height
-}) {
-    const om = Buffer.alloc(height * width).fill(0xff)
-    let i = 0
-    let o = 0
-
-    for (let y = 0; y < height; y++) {
-        for (let x = 4; x < width - 4; x++) {
-            if (im[i] > 0xf0 && im[i + 1] < 0xf0) {
-                om[o] = 0
-                om[o + 1] = 0
-            } else if (im[i] < 0xf0 && im[i + 1] > 0xf0) {
-                om[o] = 0
-                om[o + 1] = 0
-            }
-
-            i++
-            o++
-        }
-    }
-
-    om.copy(im)
-}
 
 async function createImageData(captchaString, {
     width,
     height,
 }) {
-    const randomBytes = await urandom(200 + 100 * 4 + 1 + 1)
-    const skewRandom = Buffer.alloc(200)
-    const dotsRandom = Buffer.alloc(100 * 4)
+    const skewRandom = getRandomBytes(200)
+    const dotsRandom = getRandomBytes(100 * 4)
+    const s1 = getRandomBytes(1)[0] & 0x7f
+    const s2 = getRandomBytes(1)[0] & 0x3f
 
-    randomBytes.copy(skewRandom, 0, 0, 200)
-    randomBytes.copy(dotsRandom, 0, 200, 200 + 100 * 4)
-
-    let s1 = randomBytes.readUInt8(200 + 100 * 4)
-    let s2 = randomBytes.readUInt8(200 + 100 * 4 + 1)
-
-    const imageData = Buffer.alloc(width * height).fill(0xff)
-
-    s1 &= 0x7f
-    s2 &= 0x3f
+    const imageData = new Uint8Array(width * height).fill(0xff)
 
     let offset = PADDING_X
     for (const char of captchaString) {
@@ -184,6 +157,7 @@ async function createImageData(captchaString, {
         offset += LETTER_SPACE
     }
 
+
     addLine(imageData, skewRandom, s1, {
         width, height
     })
@@ -191,9 +165,6 @@ async function createImageData(captchaString, {
         width, height
     })
     // applyBlur(imageData, {
-    //     width, height
-    // })
-    // applyFilter(imageData, {
     //     width, height
     // })
 
@@ -205,16 +176,15 @@ function makegif(imageData, gif, {
     width,
     height
 }) {
-    gif.fill(`${GIF_HEADER_BLOCK
+    convertToByteArray(`${GIF_HEADER_BLOCK
         }${getGifLogicalScreenDescriptor(width, height)
         }${getRandomColorTable()
         }${getGifImageDescriptor(width, height)
         }${GIF_LZW_MINIMUM_CODE_SIZE
         }`,
-        0,
-        GIF_META_DATA_LENGTH,
-        'ascii',
-    )
+    ).forEach((item, index) => {
+        gif[index] = item
+    })
 
     let i = 0
     let p = GIF_META_DATA_LENGTH
@@ -238,7 +208,9 @@ function makegif(imageData, gif, {
         }
     }
 
-    gif.fill(GIF_ENDING, gif.length - 2)
+    convertToByteArray(GIF_ENDING).forEach((item, index) => {
+        gif[gif.length - GIF_ENDING.length + index] = item
+    })
 }
 
 async function generateCaptchaImage(captchaString, {
@@ -246,7 +218,7 @@ async function generateCaptchaImage(captchaString, {
     height,
 }) {
     const gifSize = getGifSize(width, height)
-    const gif = Buffer.alloc(gifSize)
+    const gif = new Uint8Array(gifSize)
     const imageData = await createImageData(captchaString, {
         width,
         height
@@ -295,6 +267,7 @@ async function main() {
         const buffer = await generateCaptchaImage(captchaString, {
             width, height,
         })
+
         await fs.writeFile('captcha.gif', buffer)
     } catch (err) {
         console.error(err)

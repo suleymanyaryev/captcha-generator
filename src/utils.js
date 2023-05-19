@@ -1,16 +1,19 @@
-const { randomBytes } = require('crypto')
 const colors = require('./colors')
-
-function urandom(size) {
-    return new Promise((resolve, reject) => {
-        randomBytes(size, (err, buf) => {
-            err ? reject(err) : resolve(buf)
-        })
-    })
-}
 
 function random(min, max) {
     return Math.floor(Math.random() * (max - min)) + min
+}
+
+function getRandomBytes(length) {
+    const byteArray = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+        byteArray[i] = Math.floor(Math.random() * 256);
+    }
+    return byteArray;
+}
+
+function getRandomColorTable() {
+    return colors[random(0, colors.length)] // 48 bytes
 }
 
 function convertToLittleEndian(number) {
@@ -27,13 +30,15 @@ function convertToLittleEndian(number) {
     return littleEndian.map((item) => String.fromCharCode(parseInt(item, 16))).join('')
 }
 
-function getRandomColorTable() {
-    return colors[random(0, colors.length)] // 48 bytes
+function convertToByteArray(str) {
+    return str.split('').map((item) => item.charCodeAt(0))
 }
 
+
+
 module.exports = {
-    random,
-    urandom,
+    getRandomBytes,
+    getRandomColorTable,
     convertToLittleEndian,
-    getRandomColorTable
+    convertToByteArray,
 }
