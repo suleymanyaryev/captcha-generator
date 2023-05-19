@@ -30,7 +30,9 @@ async function getImageGrayscaleMatrix(imagePath) {
         matrix.push(pixels.slice(i, i + width));
     }
 
-    return matrix
+    return {
+        width, height, matrix
+    }
 }
 
 function convertMatrixToFlatArray(matrix) {
@@ -61,10 +63,14 @@ async function main() {
         const map = {}
         for (const image of images) {
             const imagePath = path.join(folderPath, image)
-            const matrix = await getImageGrayscaleMatrix(imagePath)
+            const { matrix, width, height } = await getImageGrayscaleMatrix(imagePath)
             const arr = convertMatrixToFlatArray(matrix)
             const imageName = path.parse(image).name;
-            map[imageName] = arr
+            map[imageName] = {
+                width,
+                height,
+                data: arr
+            }
         }
 
         await fs.writeFile('letters.json', JSON.stringify(map))
