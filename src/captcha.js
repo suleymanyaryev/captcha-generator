@@ -6,6 +6,7 @@ const SW = require('./sw')
 const WIDTH = 200
 const HEIGHT = 70
 const START_LINE = 12
+const NDOTS = 100
 const BCaptcha = 'g2x0cUTsZGJMUbgU25H6Q0jiXMXz3iF0k4K8EP4IPIzSKlhDJK2DZY1aItsC'
 
 const GIF_HEADER_BLOCK = `\x47\x49\x46\x38\x39\x61` // 6 bytes (means: GIF89a)
@@ -69,17 +70,78 @@ function letter(char, pos, imageData, swr, s1, s2) {
     return mpos
 }
 
-async function createImageData(captchaString) {
-    const rb = await urandom(200 + 100 * 4 + 1 + 1)
-    const swr = Buffer.alloc(200)
-    const dr = Buffer.alloc(100 * 4)
-    let s1
-    let s2
+function addLine(im, swr, s1) {
+    for (let x = 0, sk1 = s1; x < WIDTH - 1; x++) {
+        if (sk1 >= WIDTH) sk1 %= WIDTH
+        let skew = Math.floor(SW[sk1] / 16)
+        sk1 += (swr[x] & 0x3) + 1
+        let i = WIDTH * Math.trunc(START_LINE + HEIGHT / 3 + skew) + x
+        im[i + 0] = 0
+        im[i + 1] = 0
+        im[i + WIDTH] = 0
+        im[i + WIDTH + 1] = 0
+    }
+}
 
-    rb.copy(swr, 0, 0, 200)
-    rb.copy(dr, 0, 200, 200 + 100 * 4)
-    s1 = rb.readUInt8(200 + 100 * 4)
-    s2 = rb.readUInt8(200 + 100 * 4 + 1)
+function addDots(im, dr) {
+    for (let n = 0; n < NDOTS; n++) {
+        let v = dr.readUInt32BE(n)
+        let i = v % (WIDTH * 67)
+
+        im[i + 0] = 0xff
+        im[i + 1] = 0xff
+        im[i + 2] = 0xff
+        im[i + WIDTH] = 0xff
+        im[i + WIDTH + 1] = 0xff
+        im[i + WIDTH + 2] = 0xff
+    }
+}
+
+function applyBlur(im) {
+    for (let i = 0, y = 0; y < HEIGHT - 2; y++) {
+        for (let x = 0; x < WIDTH - 2; x++) {
+            let c11 = im[i + 0]
+            let c12 = im[i + 1]
+            let c21 = im[i + WIDTH]
+            let c22 = im[i + WIDTH + 1]
+            im[i++] = Math.floor((c11 + c12 + c21 + c22) / 4)
+        }
+    }
+}
+
+function applyFilter(im) {
+    const om = Buffer.alloc(HEIGHT * WIDTH).fill(0xff)
+    let i = 0
+    let o = 0
+
+    for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 4; x < WIDTH - 4; x++) {
+            if (im[i] > 0xf0 && im[i + 1] < 0xf0) {
+                om[o] = 0
+                om[o + 1] = 0
+            } else if (im[i] < 0xf0 && im[i + 1] > 0xf0) {
+                om[o] = 0
+                om[o + 1] = 0
+            }
+
+            i++
+            o++
+        }
+    }
+
+    om.copy(im)
+}
+
+async function createImageData(captchaString) {
+    const randomBytes = await urandom(200 + 100 * 4 + 1 + 1)
+    const skewRandom = Buffer.alloc(200)
+    const dotsRandom = Buffer.alloc(100 * 4)
+
+    randomBytes.copy(skewRandom, 0, 0, 200)
+    randomBytes.copy(dotsRandom, 0, 200, 200 + 100 * 4)
+
+    let s1 = randomBytes.readUInt8(200 + 100 * 4)
+    let s2 = randomBytes.readUInt8(200 + 100 * 4 + 1)
 
     const imageData = Buffer.alloc(WIDTH * HEIGHT).fill(0xff)
 
@@ -91,9 +153,14 @@ async function createImageData(captchaString) {
         if (!(char in font)) {
             continue
         }
-        offset = letter(char, offset, imageData, swr, s1, s2)
+        offset = letter(char, offset, imageData, skewRandom, s1, s2)
         offset += 7
     }
+
+    addLine(imageData, skewRandom, s1)
+    addDots(imageData, dotsRandom)
+    // applyBlur(imageData)
+    // applyFilter(imageData)
 
     return imageData
 }
