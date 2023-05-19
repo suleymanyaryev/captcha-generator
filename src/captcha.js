@@ -1,6 +1,7 @@
 const fs = require('fs/promises')
 const { getRandomColorTable, convertToLittleEndian, urandom } = require('./utils')
 const font = require('./font')
+const colors = require('./colors')
 const SW = require('./sw')
 
 const WIDTH = 200
@@ -14,8 +15,17 @@ const GIF_LOGICAL_SCREEN_DESCRIPTOR = `${convertToLittleEndian(WIDTH)}${convertT
 const GIF_IMAGE_DESCRIPTOR = `\x2c\0\0\0\0${convertToLittleEndian(WIDTH)}${convertToLittleEndian(HEIGHT)}\0` // 10 bytes
 const GIF_LZW_MINIMUM_CODE_SIZE = `\x04` // 1 byte
 const GIF_ENDING = `\x00;` // 2 bytes
-const GIF_META_DATA_LENGTH = 6 + 7 + 48 + 10 + 1
-const GIF_SIZE = GIF_META_DATA_LENGTH + 2 + (Math.trunc((WIDTH / 4) * 5) + 1) * HEIGHT;
+
+const GIF_META_DATA_LENGTH =
+    GIF_HEADER_BLOCK.length +
+    GIF_LOGICAL_SCREEN_DESCRIPTOR.length +
+    colors[0].length +
+    GIF_IMAGE_DESCRIPTOR.length +
+    GIF_LZW_MINIMUM_CODE_SIZE.length
+
+const GIF_IMAGE_DATA_LENGTH = (Math.trunc((WIDTH / 4) * 5) + 1) * HEIGHT;
+
+const GIF_SIZE = GIF_META_DATA_LENGTH + GIF_ENDING.length + GIF_IMAGE_DATA_LENGTH
 
 
 function letter(char, pos, imageData, swr, s1, s2) {
