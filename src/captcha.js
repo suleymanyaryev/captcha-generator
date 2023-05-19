@@ -1,4 +1,3 @@
-const fs = require('fs/promises')
 const { getRandomColorTable, getRandomBytes, convertToLittleEndian, convertToByteArray } = require('./utils')
 const font = require('./font')
 const colors = require('./colors')
@@ -9,17 +8,11 @@ const PADDING_X = 10
 const PADDING_Y = 5
 const LETTER_SPACE = 7
 
-const BCaptcha = 'g2x0cUTsZGJMUbgU25H6Q0jiXMXz3iF0k4K8EP4IPIzSKlhDJK2DZY1aItsC'
-
 const GIF_HEADER_BLOCK = `\x47\x49\x46\x38\x39\x61` // 6 bytes (means: GIF89a)
 const GIF_LZW_MINIMUM_CODE_SIZE = `\x04` // 1 byte
 const GIF_ENDING = `\x00;` // 2 bytes
-
 const GIF_META_DATA_LENGTH = GIF_HEADER_BLOCK.length + 7 + 10 + colors[0].length + GIF_LZW_MINIMUM_CODE_SIZE.length
 
-function getGifSize(width, height) {
-    return GIF_META_DATA_LENGTH + GIF_ENDING.length + (Math.trunc(width / 4) * 5 + 1) * height;
-}
 
 function getGifLogicalScreenDescriptor(width, height) {
     return `${convertToLittleEndian(width)}${convertToLittleEndian(height)}\xf3\0\0` // 7 bytes
@@ -213,34 +206,8 @@ function makegif(imageData, gif, {
     })
 }
 
-async function generateCaptchaImage(captchaString, {
-    width,
-    height,
-}) {
-    const gifSize = getGifSize(width, height)
-    const gif = new Uint8Array(gifSize)
-    const imageData = await createImageData(captchaString, {
-        width,
-        height
-    })
-    makegif(imageData, gif, {
-        width,
-        height
-    })
-    return gif
-}
-
-
-function generateCaptchaString(BCaptcha) {
-    let length = BCaptcha.length / 10
-    let mod = BCaptcha.length - 1
-    let random = Math.round(Math.random() * 1000)
-    let captcha = ""
-    for (let i = 1; i <= length; i++) {
-        let num = random * i % mod
-        captcha += BCaptcha[num]
-    }
-    return [captcha, random]
+function getGifSize(width, height) {
+    return GIF_META_DATA_LENGTH + GIF_ENDING.length + (Math.trunc(width / 4) * 5 + 1) * height;
 }
 
 function getGifDimensions(captchaString) {
@@ -260,18 +227,20 @@ function getGifDimensions(captchaString) {
     }
 }
 
-async function main() {
-    try {
-        const [captchaString, _] = generateCaptchaString(BCaptcha)
-        const { width, height } = getGifDimensions(captchaString)
-        const buffer = await generateCaptchaImage(captchaString, {
-            width, height,
-        })
-
-        await fs.writeFile('captcha.gif', buffer)
-    } catch (err) {
-        console.error(err)
-    }
+async function generateCaptchaImage(captchaString) {
+    const { width, height } = getGifDimensions(captchaString)
+    const gifSize = getGifSize(width, height)
+    const gif = new Uint8Array(gifSize)
+    const imageData = await createImageData(captchaString, {
+        width,
+        height
+    })
+    makegif(imageData, gif, {
+        width,
+        height
+    })
+    return gif
 }
 
-main()
+
+module.exports = generateCaptchaImage

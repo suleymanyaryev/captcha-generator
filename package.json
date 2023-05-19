@@ -2,6 +2,7 @@
   "name": "captcha-generator",
   "version": "0.0.1",
   "private": true,
+  "main": "src/captcha",
   "scripts": {
     "generate": "node ./src/captcha.js"
   }
