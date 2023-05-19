@@ -1,12 +1,8 @@
 {
-  "name": "captcha-generate",
+  "name": "captcha-generator",
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "generate-captcha": "node ./src/captcha.js",
-    "generate-letters": "node generate_letters.js"
-  },
-  "devDependencies": {
-    "jimp": "^0.22.8"
+    "generate": "node ./src/captcha.js"
   }
 }
