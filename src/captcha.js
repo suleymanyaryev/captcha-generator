@@ -290,8 +290,7 @@ function getGifDimensions(captchaString) {
 
 async function main() {
     try {
-        // const captchaString = generateCaptchaString(BCaptcha)
-        const captchaString = 'abcdef'
+        const [captchaString, _] = generateCaptchaString(BCaptcha)
         const { width, height } = getGifDimensions(captchaString)
         const buffer = await generateCaptchaImage(captchaString, {
             width, height,
