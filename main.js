@@ -20,6 +20,7 @@ function generateCaptchaString(BCaptcha) {
 async function main() {
     try {
         const [captchaString, _] = generateCaptchaString(BCaptcha)
+        console.log(captchaString)
         const buffer = await generateCaptchaImage(captchaString)
 
         await fs.writeFile('captcha.gif', buffer)
