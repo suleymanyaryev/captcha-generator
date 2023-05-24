@@ -4,6 +4,6 @@
   "private": true,
   "main": "src/captcha",
   "scripts": {
-    "generate": "node ./src/captcha.js"
+    "generate": "node ./main.js"
   }
 }
