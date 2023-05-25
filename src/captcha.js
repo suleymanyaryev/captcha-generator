@@ -5,7 +5,7 @@ const SW = require('./sw')
 
 const NDOTS = 100
 const PADDING_X = 10
-const PADDING_Y = 5
+const PADDING_Y = 10
 const LETTER_SPACE = 7
 
 const GIF_HEADER_BLOCK = `\x47\x49\x46\x38\x39\x61` // 6 bytes (means: GIF89a)
@@ -128,9 +128,13 @@ function applyBlur(im, {
 }
 
 
-async function createImageData(captchaString, {
+async function createImageData({
+    captchaString,
     width,
     height,
+    line,
+    dots,
+    blur,
 }) {
     const skewRandom = getRandomBytes(200)
     const dotsRandom = getRandomBytes(100 * 4)
@@ -150,25 +154,34 @@ async function createImageData(captchaString, {
         offset += LETTER_SPACE
     }
 
-
-    addLine(imageData, skewRandom, s1, {
-        width, height
-    })
-    addDots(imageData, dotsRandom, {
-        width, height
-    })
-    // applyBlur(imageData, {
-    //     width, height
-    // })
+    if (line) {
+        addLine(imageData, skewRandom, s1, {
+            width, height
+        })
+    }
+    if (dots) {
+        addDots(imageData, dotsRandom, {
+            width, height
+        })
+    }
+    if (blur) {
+        applyBlur(imageData, {
+            width, height
+        })
+    }
 
     return imageData
 }
 
 
-function makegif(imageData, gif, {
+function makegif({
+    imageData,
+    gifSize,
     width,
     height
 }) {
+    const gif = new Uint8Array(gifSize)
+
     convertToByteArray(`${GIF_HEADER_BLOCK
         }${getGifLogicalScreenDescriptor(width, height)
         }${getRandomColorTable()
@@ -204,6 +217,8 @@ function makegif(imageData, gif, {
     convertToByteArray(GIF_ENDING).forEach((item, index) => {
         gif[gif.length - GIF_ENDING.length + index] = item
     })
+
+    return gif
 }
 
 function getGifSize(width, height) {
@@ -227,19 +242,28 @@ function getGifDimensions(captchaString) {
     }
 }
 
-async function generateCaptchaImage(captchaString) {
+async function generateCaptchaImage(captchaString, {
+    line = false,
+    dots = false,
+    blur = false
+} = {}) {
     const { width, height } = getGifDimensions(captchaString)
     const gifSize = getGifSize(width, height)
-    const gif = new Uint8Array(gifSize)
-    const imageData = await createImageData(captchaString, {
+    const imageData = await createImageData({
+        captchaString,
+        width,
+        height,
+        line,
+        dots,
+        blur,
+    })
+
+    return makegif({
+        imageData,
+        gifSize,
         width,
         height
     })
-    makegif(imageData, gif, {
-        width,
-        height
-    })
-    return gif
 }
 
 

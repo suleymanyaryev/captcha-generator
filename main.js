@@ -21,7 +21,10 @@ async function main() {
     try {
         const [captchaString, _] = generateCaptchaString(BCaptcha)
         console.log(captchaString)
-        const buffer = await generateCaptchaImage(captchaString)
+        const buffer = await generateCaptchaImage(captchaString, {
+            line: true,
+            dots: true,
+        })
 
         await fs.writeFile('captcha.gif', buffer)
     } catch (err) {
